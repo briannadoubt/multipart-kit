@@ -58,6 +58,75 @@ struct FormDataEncodingTests {
                 )
         )
     }
+    
+    @Test("Encoding With Configuration")
+    @available(iOS 15, macOS 12, macCatalyst 15, tvOS 15, watchOS 8, visionOS 1, *)
+    func encodeWithConfiguration() throws {
+        struct Foo: EncodableWithConfiguration {
+            var string: String
+            var int: Int
+            var double: Double
+            var array: [Int]
+            var bool: Bool
+            
+            typealias EncodingConfiguration = Bool
+            
+            func encode(to encoder: any Encoder, configuration: Bool) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(string, forKey: .string)
+                try container.encode(int, forKey: .int)
+                try container.encode(double, forKey: .double)
+                try container.encode(array, forKey: .array)
+                try container.encode(bool, forKey: .bool)
+            }
+            
+            enum CodingKeys: String, CodingKey {
+                case string
+                case int
+                case double
+                case array
+                case bool
+            }
+        }
+        let a = Foo(string: "a", int: 42, double: 3.14, array: [1, 2, 3], bool: true)
+        let data = try FormDataEncoder().encode(a, configuration: true, boundary: "hello", to: [UInt8].self)
+        #expect(
+            data
+                == Array(
+                    """
+                    --hello\r
+                    Content-Disposition: form-data; name="string"\r
+                    \r
+                    a\r
+                    --hello\r
+                    Content-Disposition: form-data; name="int"\r
+                    \r
+                    42\r
+                    --hello\r
+                    Content-Disposition: form-data; name="double"\r
+                    \r
+                    3.14\r
+                    --hello\r
+                    Content-Disposition: form-data; name="array[0]"\r
+                    \r
+                    1\r
+                    --hello\r
+                    Content-Disposition: form-data; name="array[1]"\r
+                    \r
+                    2\r
+                    --hello\r
+                    Content-Disposition: form-data; name="array[2]"\r
+                    \r
+                    3\r
+                    --hello\r
+                    Content-Disposition: form-data; name="bool"\r
+                    \r
+                    true\r
+                    --hello--\r\n
+                    """.utf8
+                )
+        )
+    }
 
     @Test("Nested Encoding")
     func nestedEncode() throws {
@@ -90,6 +159,120 @@ struct FormDataEncodingTests {
                         .init(int: 20, string: "21", strings: ["22", "33"]),
                     ])
             ]), boundary: "-")
+        let expected =
+            """
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][int]"\r
+            \r
+            1\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][string]"\r
+            \r
+            1\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][strings][0]"\r
+            \r
+            2\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][strings][1]"\r
+            \r
+            3\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdata][int]"\r
+            \r
+            4\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdata][string]"\r
+            \r
+            5\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdata][strings][0]"\r
+            \r
+            6\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdata][strings][1]"\r
+            \r
+            7\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdataList][0][int]"\r
+            \r
+            10\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdataList][0][string]"\r
+            \r
+            11\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdataList][0][strings][0]"\r
+            \r
+            12\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdataList][0][strings][1]"\r
+            \r
+            13\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdataList][1][int]"\r
+            \r
+            20\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdataList][1][string]"\r
+            \r
+            21\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdataList][1][strings][0]"\r
+            \r
+            22\r
+            ---\r
+            Content-Disposition: form-data; name="nestedFormdata[0][anotherNestedFormdataList][1][strings][1]"\r
+            \r
+            33\r
+            -----\r\n
+            """
+
+        #expect(data == expected)
+    }
+    
+    @Test("Nested Encoding With Configuration")
+    @available(iOS 15, macOS 12, macCatalyst 15, tvOS 15, watchOS 8, visionOS 1, *)
+    func nestedEncodeWithConfiguration() throws {
+        struct FormData: EncodableWithConfiguration, Equatable {
+            func encode(to encoder: any Encoder, configuration: Bool) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(nestedFormdata, forKey: .nestedFormdata)
+            }
+            
+            enum CodingKeys: String, CodingKey {
+                case nestedFormdata
+            }
+            
+            typealias EncodingConfiguration = Bool
+            struct NestedFormdata: Encodable, Equatable {
+                struct AnotherNestedFormdata: Encodable, Equatable {
+                    let int: Int
+                    let string: String
+                    let strings: [String]
+                }
+                let int: String
+                let string: Int
+                let strings: [String]
+                let anotherNestedFormdata: AnotherNestedFormdata
+                let anotherNestedFormdataList: [AnotherNestedFormdata]
+            }
+            let nestedFormdata: [NestedFormdata]
+        }
+
+        let encoder = FormDataEncoder()
+        let data = try encoder.encode(
+            FormData(nestedFormdata: [
+                .init(
+                    int: "1",
+                    string: 1,
+                    strings: ["2", "3"],
+                    anotherNestedFormdata: .init(int: 4, string: "5", strings: ["6", "7"]),
+                    anotherNestedFormdataList: [
+                        .init(int: 10, string: "11", strings: ["12", "13"]),
+                        .init(int: 20, string: "21", strings: ["22", "33"]),
+                    ])
+            ]), configuration: true, boundary: "-")
         let expected =
             """
             ---\r
