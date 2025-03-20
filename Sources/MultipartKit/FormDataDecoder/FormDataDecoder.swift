@@ -1,7 +1,4 @@
 import HTTPTypes
-#if canImport(Foundation)
-import Foundation
-#endif
 
 /// Decodes `Decodable` types from `multipart/form-data` encoded data.
 ///
@@ -63,48 +60,4 @@ public struct FormDataDecoder: Sendable {
         let decoder = FormDataDecoder.Decoder(codingPath: [], data: data, userInfo: userInfo)
         return try decoder.decode(D.self)
     }
-    
-    #if canImport(Foundation)
-    /// Decodes a `DecodableWithConfiguration` item from `String` using the supplied boundary.
-    ///
-    /// ```swift
-    /// let foo = try FormDataDecoder().decode(Foo.self, from: "...", boundary: "123")
-    /// ```
-    ///
-    /// - Parameters:
-    ///   - decodable: Generic `DecodableWithConfiguration` type.
-    ///   - string: `String` to decode.
-    ///   - boundary: Multipart boundary to used in the decoding.
-    /// - Throws: Any errors decoding the model with `Codable` or parsing the data.
-    /// - Returns: An instance of the decoded type `D`.
-    @available(iOS 15, macOS 12, macCatalyst 15, tvOS 15, watchOS 8, visionOS 1, *)
-    public func decode<D: DecodableWithConfiguration>(_ decodable: D.Type, configuration: D.DecodingConfiguration, from string: String, boundary: String) throws -> D {
-        try decode(D.self, from: Array(string.utf8), boundary: boundary)
-    }
-
-    /// Decodes a `DecodableWithConfiguration` item from  some``MultipartPartBodyElement`` using the supplied boundary.
-    ///
-    /// ```swift
-    /// let foo = try FormDataDecoder().decode(Foo.self, from: data, boundary: "123")
-    /// ```
-    ///
-    /// - Parameters:
-    ///   - decodable: Generic `DecodableWithConfiguration` type.
-    ///   - buffer: some ``MultipartPartBodyElement`` to decode.
-    ///   - boundary: Multipart boundary to used in the decoding.
-    /// - Throws: Any errors decoding the model with `Codable` or parsing the data.
-    /// - Returns: An instance of the decoded type `D`.
-    @available(iOS 15, macOS 12, macCatalyst 15, tvOS 15, watchOS 8, visionOS 1, *)
-    public func decode<D: DecodableWithConfiguration, Body: MultipartPartBodyElement>(
-        _ decodable: D.Type,
-        configuration: D.DecodingConfiguration,
-        from buffer: Body,
-        boundary: String
-    ) throws -> D where Body.SubSequence: Equatable & Sendable {
-        let parts = try MultipartParser(boundary: boundary).parse(buffer)
-        let data = MultipartFormData(parts: parts, nestingDepth: nestingDepth)
-        let decoder = FormDataDecoder.Decoder(codingPath: [], data: data, userInfo: userInfo)
-        return try decoder.decode(D.self)
-    }
-    #endif
 }
